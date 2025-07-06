@@ -97,5 +97,9 @@ export const Default: Story = {
   args: {
     position: defaultArgs.position,
     modalOpen: true,
+    setModalOpen: () => undefined,
+  },
+  argTypes: {
+    setModalOpen: { control: { disable: true } },
   },
 }

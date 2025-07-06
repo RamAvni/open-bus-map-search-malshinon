@@ -1,4 +1,5 @@
-import { useState, ChangeEvent, useEffect } from 'react'
+import z from 'zod'
+import { useState, ChangeEvent } from 'react'
 import {
   Button,
   MenuItem,
@@ -10,102 +11,66 @@ import {
   DialogActions,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { SiriRideWithRelatedPydanticModel } from 'open-bus-stride-client'
+import { useQuery } from '@tanstack/react-query'
 import { Point } from 'src/pages/timeBasedMap'
 import { getSiriRideWithRelated } from 'src/api/siriService'
 
+const complaintTypes = [
+  'other',
+  'no_stop',
+  'no_ride',
+  'delay',
+  'overcrowded',
+  'driver_behavior',
+  'early',
+  'cleanliness',
+  'fine_appeal',
+  'route_change',
+  'line_switch',
+  'station_signs',
+] as const
+
+const dataVerificationSchema = z.object({
+  firstName: z.string().min(2),
+  lastName: z.string().min(2),
+  id: z.string().min(9),
+  email: z.string().email(),
+  phone: z.string().regex(/05[0-9]{8}/),
+  complaintType: z.enum(complaintTypes),
+  description: z.string().min(30),
+})
+
+type dataVerificationType = z.infer<typeof dataVerificationSchema>
+
 interface ComplaintModalProps {
-  modalOpen?: boolean
-  setModalOpen?: (open: boolean) => void
+  modalOpen: boolean
+  setModalOpen: (open: boolean) => void
+
   position: Point
 }
 
-type complaintTypeStrings =
-  | 'other'
-  | 'no_stop'
-  | 'no_ride'
-  | 'delay'
-  | 'overcrowded'
-  | 'driver_behavior'
-  | 'early'
-  | 'cleanliness'
-  | 'fine_appeal'
-  | 'route_change'
-  | 'line_switch'
-  | 'station_signs'
-
-type complaintType = {
-  value: complaintTypeStrings
-  label: complaintTypeStrings
-}
-
-const complaintTypes: complaintType[] = [
-  { value: 'other', label: 'other' },
-  { value: 'no_stop', label: 'no_stop' },
-  { value: 'no_ride', label: 'no_ride' },
-  { value: 'delay', label: 'delay' },
-  { value: 'overcrowded', label: 'overcrowded' },
-  { value: 'driver_behavior', label: 'driver_behavior' },
-  { value: 'early', label: 'early' },
-  { value: 'cleanliness', label: 'cleanliness' },
-  { value: 'fine_appeal', label: 'fine_appeal' },
-  { value: 'route_change', label: 'route_change' },
-  { value: 'line_switch', label: 'line_switch' },
-  { value: 'station_signs', label: 'station_signs' },
-]
-
-const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: ComplaintModalProps) => {
+const ComplaintModal = ({ modalOpen, setModalOpen, position }: ComplaintModalProps) => {
   const { t, i18n } = useTranslation()
-  const [siriRide, setSiriRide] = useState<SiriRideWithRelatedPydanticModel | undefined>()
-  const [isLoading, setIsLoading] = useState(false)
-  const [complaintData, setComplaintData] = useState({
-    firstName: '',
-    lastName: '',
-    id: '',
-    email: '',
-    phone: '',
-    complaintType: '',
-    description: '',
+  const [complaintData, setComplaintData] = useState<Partial<dataVerificationType>>(
+    dataVerificationSchema.parse({}),
+  )
+
+  const siriRideQuery = useQuery({
+    queryKey: ['siriRide', position] as const,
+    queryFn: ({ queryKey: [, position] }) =>
+      getSiriRideWithRelated(
+        position.point!.siri_route__id.toString(),
+        position.point!.siri_ride__vehicle_ref.toString(),
+        position.point!.siri_route__line_ref.toString(),
+      ),
   })
 
-  useEffect(() => {
-    setIsLoading(true)
-    getSiriRideWithRelated(
-      position.point!.siri_route__id.toString(),
-      position.point!.siri_ride__vehicle_ref.toString(),
-      position.point!.siri_route__line_ref.toString(),
-    )
-      .then((siriRideRes: SiriRideWithRelatedPydanticModel) => setSiriRide(siriRideRes))
-      .finally(() => setIsLoading(false))
-  }, [position])
-
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setComplaintData((prevData) => ({ ...prevData, [name]: value }))
   }
 
-  // const handleSelectChange = (e: SelectChangeEvent<typeof complaintTypes>) => {
-  const handleSelectChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setComplaintData((prevData) => ({ ...prevData, [name]: value }) as const)
-  }
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    // TODO: Ram and Mikey
-    console.log(`lalalala`)
-    e.preventDefault()
-    const complaintPayload = {
-      userData: complaintData,
-      databusData: {
-        operator: siriRide?.gtfsRideGtfsRouteId,
-        ...position,
-      },
-    }
-    console.log(complaintPayload)
-    // Handle the form submission, e.g., send it to an API
-    setModalOpen?.(false)
-  }
-
-  if (isLoading)
+  if (siriRideQuery.isLoading)
     return (
       <div className="loading">
         <span>{t('loading_routes')}</span>
@@ -113,16 +78,19 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
       </div>
     )
 
-  if (!siriRide) return <h1>Error</h1>
+  // TODO : Error handling
+  if (!siriRideQuery.data) return <h1>Error</h1>
 
   return (
     <Dialog
       dir={i18n.dir()}
       open={modalOpen}
-      onClose={() => setModalOpen?.(false)}
-      PaperProps={{
-        component: 'form',
-        onSubmit: handleSubmit,
+      onClose={() => setModalOpen(false)}
+      slotProps={{
+        paper: {
+          component: 'form',
+          onSubmit: () => undefined, // TODO : handling submit
+        },
       }}>
       <DialogTitle>{t('complaint')}</DialogTitle>
       <DialogContent>
@@ -130,7 +98,7 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           label={t('first_name')}
           name="firstName"
           value={complaintData.firstName}
-          onChange={handleInputChange}
+          onChange={handleChange}
           fullWidth
           margin="normal"
         />
@@ -138,7 +106,7 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           label={t('last_name')}
           name="lastName"
           value={complaintData.lastName}
-          onChange={handleInputChange}
+          onChange={handleChange}
           fullWidth
           margin="normal"
         />
@@ -146,7 +114,7 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           label={t('id')}
           name="id"
           value={complaintData.id}
-          onChange={handleInputChange}
+          onChange={handleChange}
           fullWidth
           margin="normal"
         />
@@ -155,7 +123,7 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           name="email"
           type="email"
           value={complaintData.email}
-          onChange={handleInputChange}
+          onChange={handleChange}
           fullWidth
           margin="normal"
         />
@@ -164,7 +132,7 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           name="phone"
           type="tel"
           value={complaintData.phone}
-          onChange={handleInputChange}
+          onChange={handleChange}
           fullWidth
           margin="normal"
         />
@@ -176,10 +144,10 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           fullWidth
           name="complaintType"
           value={complaintData.complaintType}
-          onChange={handleSelectChange}>
+          onChange={handleChange}>
           {complaintTypes.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {t(option.label)}
+            <MenuItem key={option} value={option}>
+              {t(option)}
             </MenuItem>
           ))}
         </TextField>
@@ -188,14 +156,14 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
           name="description"
           type="text"
           value={complaintData.description}
-          onChange={handleInputChange}
+          onChange={handleChange}
           multiline
           rows={4}
           fullWidth
           margin="normal"
         />
         <DialogActions sx={{ gap: '5px', justifyContent: 'flex-end' }}>
-          <Button variant="contained" color="warning" onClick={() => setModalOpen?.(false)}>
+          <Button variant="contained" color="warning" onClick={() => setModalOpen(false)}>
             {t('close_complaint')}
           </Button>
           <Button type="submit" variant="contained" color="primary">
