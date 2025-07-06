@@ -79,7 +79,6 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
       .finally(() => setIsLoading(false))
   }, [position])
 
-  const textDirection = i18n.language === 'he' ? 'rtl' : 'ltr'
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setComplaintData((prevData) => ({ ...prevData, [name]: value }))
@@ -88,10 +87,10 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
   // const handleSelectChange = (e: SelectChangeEvent<typeof complaintTypes>) => {
   const handleSelectChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    console.log(e)
     setComplaintData((prevData) => ({ ...prevData, [name]: value }) as const)
   }
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // TODO: Ram and Mikey
     console.log(`lalalala`)
     e.preventDefault()
     const complaintPayload = {
@@ -106,104 +105,105 @@ const ComplaintModal = ({ modalOpen = false, setModalOpen, position }: Complaint
     setModalOpen?.(false)
   }
 
+  if (isLoading)
+    return (
+      <div className="loading">
+        <span>{t('loading_routes')}</span>
+        <CircularProgress />
+      </div>
+    )
+
+  if (!siriRide) return <h1>Error</h1>
+
   return (
-    <div>
-      {isLoading || !siriRide ? (
-        <div className="loading">
-          <span>{t('loading_routes')}</span>
-          <CircularProgress />
-        </div>
-      ) : (
-        <Dialog
-          dir={textDirection}
-          open={modalOpen}
-          onClose={() => setModalOpen?.(false)}
-          PaperProps={{
-            component: 'form',
-            onSubmit: handleSubmit,
-          }}>
-          <DialogTitle>{t('complaint')}</DialogTitle>
-          <DialogContent>
-            <TextField
-              label={t('first_name')}
-              name="firstName"
-              value={complaintData.firstName}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              label={t('last_name')}
-              name="lastName"
-              value={complaintData.lastName}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              label={t('id')}
-              name="id"
-              value={complaintData.id}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              label={t('email')}
-              name="email"
-              type="email"
-              value={complaintData.email}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              label={t('phone')}
-              name="phone"
-              type="tel"
-              value={complaintData.phone}
-              onChange={handleInputChange}
-              fullWidth
-              margin="normal"
-            />
-            <TextField
-              id="complaint_type"
-              select
-              margin="normal"
-              label={t('complaint_type')}
-              fullWidth
-              name="complaintType"
-              value={complaintData.complaintType}
-              onChange={handleSelectChange}>
-              {complaintTypes.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {t(option.label)}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label={t('description')}
-              name="description"
-              type="text"
-              value={complaintData.description}
-              onChange={handleInputChange}
-              multiline
-              rows={4}
-              fullWidth
-              margin="normal"
-            />
-            <DialogActions sx={{ gap: '5px', justifyContent: 'flex-end' }}>
-              <Button variant="contained" color="warning" onClick={() => setModalOpen?.(false)}>
-                {t('close_complaint')}
-              </Button>
-              <Button type="submit" variant="contained" color="primary">
-                {t('submit_complaint')}
-              </Button>
-            </DialogActions>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+    <Dialog
+      dir={i18n.dir()}
+      open={modalOpen}
+      onClose={() => setModalOpen?.(false)}
+      PaperProps={{
+        component: 'form',
+        onSubmit: handleSubmit,
+      }}>
+      <DialogTitle>{t('complaint')}</DialogTitle>
+      <DialogContent>
+        <TextField
+          label={t('first_name')}
+          name="firstName"
+          value={complaintData.firstName}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label={t('last_name')}
+          name="lastName"
+          value={complaintData.lastName}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label={t('id')}
+          name="id"
+          value={complaintData.id}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label={t('email')}
+          name="email"
+          type="email"
+          value={complaintData.email}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label={t('phone')}
+          name="phone"
+          type="tel"
+          value={complaintData.phone}
+          onChange={handleInputChange}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          id="complaint_type"
+          select
+          margin="normal"
+          label={t('complaint_type')}
+          fullWidth
+          name="complaintType"
+          value={complaintData.complaintType}
+          onChange={handleSelectChange}>
+          {complaintTypes.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {t(option.label)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          label={t('description')}
+          name="description"
+          type="text"
+          value={complaintData.description}
+          onChange={handleInputChange}
+          multiline
+          rows={4}
+          fullWidth
+          margin="normal"
+        />
+        <DialogActions sx={{ gap: '5px', justifyContent: 'flex-end' }}>
+          <Button variant="contained" color="warning" onClick={() => setModalOpen?.(false)}>
+            {t('close_complaint')}
+          </Button>
+          <Button type="submit" variant="contained" color="primary">
+            {t('submit_complaint')}
+          </Button>
+        </DialogActions>
+      </DialogContent>
+    </Dialog>
   )
 }
 
